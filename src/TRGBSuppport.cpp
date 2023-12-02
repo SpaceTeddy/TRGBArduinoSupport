@@ -12,8 +12,6 @@
 
 #include <TRGBSuppport.h>
 
-#include "img.h"  //unsern Logo
-
 // WiFi include needed for deep sleep support.
 #include "WiFi.h"
 
@@ -114,9 +112,6 @@ void TRGBSuppport::init() {
 
 	tft_init();
 	esp_lcd_panel_handle_t panel_handle = register_tft();
-
-	// Draw a start logo (before init of LVGL)
-	esp_lcd_panel_draw_bitmap(panel_handle, 0, 0, 480, 480, logo_img);
 
 	// Initialize touch
 	pinMode(TP_INT_PIN, INPUT_PULLUP);
