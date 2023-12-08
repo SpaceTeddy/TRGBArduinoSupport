@@ -22,7 +22,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "lvgl": "^8.3.0",
+    "lvgl": "https://github.com/lvgl/lvgl",
     "TouchLib": "https://github.com/mmMicky/TouchLib.git"
   },
   "frameworks": "arduino",
