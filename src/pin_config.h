@@ -42,7 +42,7 @@
 #define BAT_VOLT_PIN                   4
 #define TP_INT_PIN                     1
 
-//#define BOOT_BTN_PIN 0
+#define BOOT_BTN_PIN 0
 
 /* XL9535 --- PIN - P0*/
 #define TP_RES_PIN   1
@@ -50,5 +50,5 @@
 #define LCD_CS_PIN   3
 #define LCD_SDA_PIN  4
 #define LCD_CLK_PIN  5
-#define LCD_RST_PIN  6
+//#define LCD_RST_PIN  6
 #define SD_CS_PIN    7
