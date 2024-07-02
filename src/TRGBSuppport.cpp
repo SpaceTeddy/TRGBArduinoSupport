@@ -243,17 +243,17 @@ void TRGBSuppport::tft_init(void) {
 }
 
 
-void TRGBSuppport::SD_init(void) {
+bool TRGBSuppport::SD_init(void) {
   SD_MMC.setPins(SD_CLK_PIN, SD_CMD_PIN, SD_D0_PIN);
   if (!SD_MMC.begin("/sdcard", true, true, BOARD_MAX_SDMMC_FREQ, 10)) { // max 10 open files (need more than the default 5 due to logging, replay, webserver etc.)
     Serial.println("Card Mount Failed");
-    return;
+    return false;
   }
 
   uint8_t cardType = SD_MMC.cardType();
   if (cardType == CARD_NONE) {
     Serial.println("No SD card attached");
-    return;
+    return false;
   }
 
   Serial.print("SD Card Type: ");
@@ -269,6 +269,40 @@ void TRGBSuppport::SD_init(void) {
 
   uint64_t cardSize = SD_MMC.cardSize() / (1024 * 1024);
   Serial.printf("SD Card Size: %lluMB\n", cardSize);
+
+    // Scan the root directory for the largest file number
+    File root = SD.open("/");
+    while (true) {
+      File entry = root.openNextFile();
+      if (!entry) {
+        break;
+      }
+      String fileName = entry.name();
+      entry.close();
+      if (fileName.endsWith(".csv")) {
+        int dotIndex = fileName.lastIndexOf('.');
+        String numberPart = fileName.substring(0, dotIndex);
+        int fileNumber = numberPart.toInt();
+        if (fileNumber > largestFileNumber) {
+          largestFileNumber = fileNumber;
+        }
+      }
+    }
+    
+    // Create a new file with a number one greater than the largest
+    newFileName = String(largestFileNumber + 1) + ".csv";
+    dataFile = SD.open(newFileName, FILE_WRITE);
+    
+    // Write column headers to the new CSV file
+    if (dataFile) {
+      dataFile.println("rpm,speed,coolant temp");
+      dataFile.close();
+      Serial.println("File created: " + newFileName);
+    } else {
+      Serial.println("Error creating file: " + newFileName);
+      sdCard = false;
+    }
+return true;
 }
 
 
