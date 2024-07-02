@@ -101,7 +101,7 @@ public:
 	void deepSleep();
 	void restart();
 	void init();
-	void SD_init(); //could be static, but I guess it is too confusing.
+	bool SD_init(); //could be static, but I guess it is too confusing.
 
 	float getBatVoltage() const {return (analogRead(BAT_VOLT_PIN) * 2 * 3.3) / 4096;}
 	bool isBatCharging() const {return getBatVoltage() > 4.1;}  // LiIon end-of-charge voltage ~ 4.2V, so charger voltage is approx this voltage.
