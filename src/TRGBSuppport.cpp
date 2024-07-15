@@ -248,31 +248,30 @@ bool TRGBSuppport::SD_init(void) {
   if (!SD_MMC.begin("/sdcard", true, true, BOARD_MAX_SDMMC_FREQ, 10)) { // max 10 open files (need more than the default 5 due to logging, replay, webserver etc.)
     Serial.println("Card Mount Failed");
     return false;
+  } else {
+      uint8_t cardType = SD_MMC.cardType();
+      if (cardType == CARD_NONE) {
+        Serial.println("No SD card attached");
+        return false;
+      }
+
+      Serial.print("SD Card Type: ");
+
+      if (cardType == CARD_MMC)
+        Serial.println("MMC");
+      else if (cardType == CARD_SD)
+        Serial.println("SDSC");
+      else if (cardType == CARD_SDHC)
+        Serial.println("SDHC");
+      else
+        Serial.println("UNKNOWN");
+
+      uint64_t cardSize = SD_MMC.cardSize() / (1024 * 1024);
+      Serial.printf("SD Card Size: %lluMB\n", cardSize);
+
+    return true;
   }
-
-  uint8_t cardType = SD_MMC.cardType();
-  if (cardType == CARD_NONE) {
-    Serial.println("No SD card attached");
-    return false;
-  }
-
-  Serial.print("SD Card Type: ");
-
-  if (cardType == CARD_MMC)
-    Serial.println("MMC");
-  else if (cardType == CARD_SD)
-    Serial.println("SDSC");
-  else if (cardType == CARD_SDHC)
-    Serial.println("SDHC");
-  else
-    Serial.println("UNKNOWN");
-
-  uint64_t cardSize = SD_MMC.cardSize() / (1024 * 1024);
-  Serial.printf("SD Card Size: %lluMB\n", cardSize);
-
-return true;
 }
-
 
 void TRGBSuppport::scan_iic(void) {
   byte error, address;
