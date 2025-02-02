@@ -87,10 +87,17 @@ class TRGBSuppport {
 private:
 	XL9535 xl;
 
-	lv_disp_draw_buf_t disp_buf; // contains internal graphic buffer(s) called draw buffer(s)
+#if LVGL_VERSION_MAJOR == 9 && LVGL_VERSION_MINOR >= 0
+	lv_draw_buf_t disp_buf; // contains internal graphic buffer(s) called draw buffer(s)
+	lv_display_t * disp_drv;      // contains callback functions
+	lv_indev_t * indev_drv;
+#elif LVGL_VERSION_MAJOR == 8 && LVGL_VERSION_MINOR >= 3  
+  lv_disp_draw_buf_t disp_buf; // contains internal graphic buffer(s) called draw buffer(s)
 	lv_disp_drv_t disp_drv;      // contains callback functions
 	lv_indev_drv_t indev_drv;
-	void tft_init(void);
+#endif
+
+  void tft_init(void);
 	void lcd_cmd(const uint8_t cmd);
 	void lcd_data(const uint8_t *data, int len);
 	void lcd_send_data(uint8_t data);

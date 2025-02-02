@@ -21,35 +21,69 @@ static bool touch_pin_get_int=false;
 static RTC_DATA_ATTR uint16_t bootCount = 0;
 uint16_t TRGBSuppport::getBootCount() { return bootCount; }
 
+#if LVGL_VERSION_MAJOR == 9 && LVGL_VERSION_MINOR >= 0
 
-static void lv_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data) {
-  if (touch_pin_get_int) {
-    uint8_t touch_points_num;
-    uint16_t x, y;
-    ft3267_read_pos(&touch_points_num, &x, &y);
-    if (touch_points_num > 0) {
-    	data->point.x = x;
-    	data->point.y = y;
-    	data->state = LV_INDEV_STATE_PRESSED;
-    } else {
-    	data->state =  LV_INDEV_STATE_RELEASED;
+    static void lv_touchpad_read(lv_indev_t *indev_driver, lv_indev_data_t *data) {
+      if (touch_pin_get_int) {
+        uint8_t touch_points_num;
+        uint16_t x = 0, y = 0;
+        ft3267_read_pos(&touch_points_num, &x, &y);
+
+        //Serial.printf("Touch gelesen: Punkte=%d, X=%d, Y=%d\n", touch_points_num, x, y);
+
+        if (touch_points_num > 0) {
+            data->point.x = x;
+            data->point.y = y;
+            data->state = LV_INDEV_STATE_PRESSED;
+        } else {
+            data->state = LV_INDEV_STATE_RELEASED;
+        }
+      }
     }
-    touch_pin_get_int = false;
-  } else {
-    data->state = LV_INDEV_STATE_RELEASED;
-  }
-}
 
-static void lvgl_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_map) {
-  esp_lcd_panel_handle_t panel_handle = (esp_lcd_panel_handle_t)drv->user_data;
-  int offsetx1 = area->x1;
-  int offsetx2 = area->x2;
-  int offsety1 = area->y1;
-  int offsety2 = area->y2;
-  esp_lcd_panel_draw_bitmap(panel_handle, offsetx1, offsety1, offsetx2 + 1, offsety2 + 1, color_map);
-  lv_disp_flush_ready(drv);
-}
+static void lvgl_flush_cb(lv_display_t *disp_drv, const lv_area_t *area, uint8_t *px_map) {
+    Serial.printf("FLUSH: Bereich (%d, %d) bis (%d, %d)\n", area->x1, area->y1, area->x2, area->y2);
+    
+    esp_lcd_panel_handle_t panel_handle = (esp_lcd_panel_handle_t)lv_display_get_user_data(disp_drv);
+    esp_err_t err = esp_lcd_panel_draw_bitmap(panel_handle, area->x1, area->y1, area->x2 + 1, area->y2 + 1, (uint16_t *)px_map);
 
+        if (err == ESP_OK) {
+            Serial.println("FLUSH fertig!");
+            lv_display_flush_ready(disp_drv);
+        } else {
+            Serial.println("Fehler beim Zeichnen auf das Display!");
+        }
+    }
+#elif LVGL_VERSION_MAJOR == 8 && LVGL_VERSION_MINOR >= 3
+
+    static void lv_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data) {
+      if (touch_pin_get_int) {
+        uint8_t touch_points_num;
+        uint16_t x, y;
+        ft3267_read_pos(&touch_points_num, &x, &y);
+        if (touch_points_num > 0) {
+          data->point.x = x;
+          data->point.y = y;
+          data->state = LV_INDEV_STATE_PRESSED;
+        } else {
+          data->state =  LV_INDEV_STATE_RELEASED;
+        }
+        touch_pin_get_int = false;
+      } else {
+        data->state = LV_INDEV_STATE_RELEASED;
+      }
+    }
+
+    static void lvgl_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_map) {
+      esp_lcd_panel_handle_t panel_handle = (esp_lcd_panel_handle_t)drv->user_data;
+      int offsetx1 = area->x1;
+      int offsetx2 = area->x2;
+      int offsety1 = area->y1;
+      int offsety2 = area->y2;
+      esp_lcd_panel_draw_bitmap(panel_handle, offsetx1, offsety1, offsetx2 + 1, offsety2 + 1, color_map);
+      lv_disp_flush_ready(drv);
+    }
+#endif
 
 TRGBSuppport::TRGBSuppport() {
 	bootCount++;
@@ -89,54 +123,83 @@ esp_lcd_panel_handle_t TRGBSuppport::register_tft() {
 }
 
 void TRGBSuppport::init() {
-	Serial.begin(115200);
-	Serial.setTxTimeoutMs(1);	// workaround to minimize blocking time for output to HWCDCSerial (Serial), if no host is connected.
-	Serial.print("Init T-RGB device. Bootcount:");
-	Serial.println(getBootCount());
-	Wire.begin(IIC_SDA_PIN, IIC_SCL_PIN, (uint32_t) 400000);
-	xl.begin();
-	uint8_t pin = (1 << PWR_EN_PIN)  | (1 << LCD_CS_PIN)  | (1 << TP_RES_PIN)
-			    | (1 << LCD_SDA_PIN) | (1 << LCD_CLK_PIN) | (1 << LCD_RST_PIN)
-			    | (1 << SD_CS_PIN);
+    Serial.begin(115200);
+    Serial.setTxTimeoutMs(1);    // workaround to minimize blocking time for output to HWCDCSerial (Serial), if no host is connected.
+    Serial.print("Init T-RGB device. Bootcount:");
+    Serial.println(getBootCount());
+    Wire.begin(IIC_SDA_PIN, IIC_SCL_PIN, (uint32_t) 400000);
+    xl.begin();
+    uint8_t pin = (1 << PWR_EN_PIN)  | (1 << LCD_CS_PIN)  | (1 << TP_RES_PIN)
+                | (1 << LCD_SDA_PIN) | (1 << LCD_CLK_PIN) | (1 << LCD_RST_PIN)
+                | (1 << SD_CS_PIN);
 
-	xl.pinMode8(0, pin, OUTPUT);
-	xl.digitalWrite(PWR_EN_PIN, 1);
+    xl.pinMode8(0, pin, OUTPUT);
+    xl.digitalWrite(PWR_EN_PIN, 1);
 
-	// Enable CS for SD card
-	xl.digitalWrite(SD_CS_PIN, 1); // To use SDIO one-line mode, you need to pull the CS pin high
+    // Enable CS for SD card
+    xl.digitalWrite(SD_CS_PIN, 1); // To use SDIO one-line mode, you need to pull the CS pin high
 
-	tft_init();
-	esp_lcd_panel_handle_t panel_handle = register_tft();
+    tft_init();
+    esp_lcd_panel_handle_t panel_handle = register_tft();
 
-	pinMode(TP_INT_PIN, INPUT_PULLUP);
-	attachInterrupt(TP_INT_PIN, [] { touch_pin_get_int = true; }, FALLING);
+    pinMode(TP_INT_PIN, INPUT_PULLUP);
+    attachInterrupt(TP_INT_PIN, [] { touch_pin_get_int = true; }, FALLING);
     pinMode(BAT_VOLT_PIN, ANALOG);
 
-	lv_init();
-	// alloc draw buffers used by LVGL from PSRAM
-	lv_color_t *buf1 = (lv_color_t*) heap_caps_malloc(
-			EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES * sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
-	assert(buf1);
-	lv_color_t *buf2 = (lv_color_t*) heap_caps_malloc(
-			EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES * sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
-	assert(buf2);
-	lv_disp_draw_buf_init(&disp_buf, buf1, buf2, EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES);
+    lv_init();
 
-	Serial.println("Register display driver to LVGL");
-	lv_disp_drv_init(&disp_drv);
-	disp_drv.hor_res = EXAMPLE_LCD_H_RES;
-	disp_drv.ver_res = EXAMPLE_LCD_V_RES;
-	disp_drv.flush_cb = lvgl_flush_cb;
-	disp_drv.draw_buf = &disp_buf;
-	disp_drv.user_data = panel_handle;
-	lv_disp_t *disp = lv_disp_drv_register(&disp_drv);
+    #if LVGL_VERSION_MAJOR == 9 && LVGL_VERSION_MINOR >= 0
+      // Code, der nur in LVGL 9.0 oder neuer ausgeführt wird
+      // Allocate draw buffers used by LVGL from PSRAM
+      lv_color_t *buf1 = (lv_color_t*) heap_caps_malloc(
+              EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES * sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
+      assert(buf1);
+      lv_color_t *buf2 = (lv_color_t*) heap_caps_malloc(
+              EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES * sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
+      assert(buf2);
 
-	lv_indev_drv_init(&indev_drv);
-	indev_drv.type = LV_INDEV_TYPE_POINTER;
-	indev_drv.read_cb = lv_touchpad_read;
-	lv_indev_drv_register(&indev_drv);
+      // Initialize the display buffer
+      lv_display_t *disp = lv_display_create(EXAMPLE_LCD_H_RES, EXAMPLE_LCD_V_RES);
+      lv_display_set_buffers(disp, buf1, buf2, EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES, /*LV_DISPLAY_RENDER_MODE_FULL*/ LV_DISPLAY_RENDER_MODE_PARTIAL);
+      lv_display_set_flush_cb(disp, lvgl_flush_cb);
+      lv_display_set_user_data(disp, panel_handle);
+
+      Serial.println("Register display driver to LVGL");
+
+      // Initialize the input device driver
+      lv_indev_t *indev = lv_indev_create();
+      lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
+      lv_indev_set_read_cb(indev, lv_touchpad_read);
+    
+    #elif LVGL_VERSION_MAJOR == 8 && LVGL_VERSION_MINOR >= 3
+      // alloc draw buffers used by LVGL from PSRAM
+      lv_color_t *buf1 = (lv_color_t*) heap_caps_malloc(
+          EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES * sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
+      assert(buf1);
+      lv_color_t *buf2 = (lv_color_t*) heap_caps_malloc(
+          EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES * sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
+      assert(buf2);
+      lv_disp_draw_buf_init(&disp_buf, buf1, buf2, EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES);
+
+      Serial.println("Register display driver to LVGL");
+      lv_disp_drv_init(&disp_drv);
+      disp_drv.hor_res = EXAMPLE_LCD_H_RES;
+      disp_drv.ver_res = EXAMPLE_LCD_V_RES;
+      disp_drv.flush_cb = lvgl_flush_cb;
+      disp_drv.draw_buf = &disp_buf;
+      disp_drv.user_data = panel_handle;
+      lv_disp_t *disp = lv_disp_drv_register(&disp_drv);
+
+      lv_indev_drv_init(&indev_drv);
+      indev_drv.type = LV_INDEV_TYPE_POINTER;
+      indev_drv.read_cb = lv_touchpad_read;
+      lv_indev_drv_register(&indev_drv);
+    
+    #endif
+
+    // Teste den Flush-Callback
+    //testFlushCallback();
 }
-
 
 void TRGBSuppport::deepSleep(void) {
   WiFi.disconnect();
@@ -241,7 +304,6 @@ void TRGBSuppport::tft_init(void) {
   digitalWrite(EXAMPLE_PIN_NUM_BK_LIGHT, EXAMPLE_LCD_BK_LIGHT_ON_LEVEL);
 
 }
-
 
 bool TRGBSuppport::SD_init(void) {
   SD_MMC.setPins(SD_CLK_PIN, SD_CMD_PIN, SD_D0_PIN);
