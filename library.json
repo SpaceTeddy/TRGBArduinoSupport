@@ -22,7 +22,6 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "dependencies": {
     "lvgl/lvgl": "^9.2.2",
     "TouchLib": "https://github.com/mmMicky/TouchLib.git@^0.0.2"
   },
