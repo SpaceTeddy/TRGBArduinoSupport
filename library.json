@@ -22,8 +22,8 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "lvgl": "https://github.com/lvgl/lvgl",
-    "TouchLib": "https://github.com/mmMicky/TouchLib.git"
+    "lvgl": "https://github.com/lvgl/lvgl.git@^9.2.2",
+    "TouchLib": "https://github.com/mmMicky/TouchLib.git@^0.0.2"
   },
   "frameworks": "arduino",
   "platforms": "espressif32"
